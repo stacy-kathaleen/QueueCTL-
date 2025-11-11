@@ -8,7 +8,7 @@ import click
 import json
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from queue_manager import QueueManager
 from worker import Worker
@@ -43,8 +43,8 @@ def enqueue(job_json):
         job_data.setdefault('state', 'pending')
         job_data.setdefault('attempts', 0)
         job_data.setdefault('max_retries', config.get('max_retries'))
-        job_data.setdefault('created_at', datetime.utcnow().isoformat() + 'Z')
-        job_data.setdefault('updated_at', datetime.utcnow().isoformat() + 'Z')
+        job_data.setdefault('created_at', datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
+        job_data.setdefault('updated_at', datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
         
         queue_manager.enqueue_job(job_data)
         click.echo(f"✓ Job '{job_data['id']}' enqueued successfully")
@@ -67,6 +67,12 @@ def worker():
 @click.option('--count', default=1, help='Number of workers to start')
 def start(count):
     """Start worker processes"""
+    import os
+    if os.name == 'nt':  # Windows
+        click.echo("⚠ Warning: Multiple workers not fully supported on Windows.")
+        click.echo("  Starting single worker instead. Use Ctrl+C to stop.")
+        count = 1
+    
     click.echo(f"Starting {count} worker(s)...")
     
     workers = []
@@ -80,9 +86,12 @@ def start(count):
             )
             w.start()
             workers.append(w)
-            click.echo(f"✓ Worker {i+1} started (PID: {w.pid})")
+            click.echo(f"✓ Worker {i+1} started")
         
-        click.echo(f"\n{count} worker(s) running. Press Ctrl+C to stop gracefully.")
+        if count == 1:
+            click.echo(f"\nWorker running. Press Ctrl+C to stop gracefully.")
+        else:
+            click.echo(f"\n{count} worker(s) running. Press Ctrl+C to stop gracefully.")
         
         # Wait for workers
         for w in workers:
