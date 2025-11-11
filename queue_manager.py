@@ -4,7 +4,7 @@ Queue Manager - Handles job persistence and state management
 
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Lock
 from pathlib import Path
 
@@ -76,7 +76,7 @@ class QueueManager:
             
             try:
                 # Get jobs that are pending or failed with retry time passed
-                now = datetime.utcnow().isoformat() + 'Z'
+                now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
                 
                 cursor.execute('''
                     SELECT * FROM jobs 
@@ -113,7 +113,7 @@ class QueueManager:
             cursor = conn.cursor()
             
             try:
-                updates['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+                updates['updated_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
                 
                 set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
                 values = list(updates.values()) + [job_id]
@@ -212,7 +212,7 @@ class QueueManager:
                 if row[0] != 'dead':
                     raise Exception(f"Job '{job_id}' is not in DLQ (current state: {row[0]})")
                 
-                now = datetime.utcnow().isoformat() + 'Z'
+                now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
                 cursor.execute('''
                     UPDATE jobs 
                     SET state = 'pending', attempts = 0, next_retry_at = NULL, 
