@@ -4,8 +4,8 @@ Worker - Executes jobs from the queue
 
 import subprocess
 import time
-from datetime import datetime, timedelta
-from multiprocessing import Process
+from datetime import datetime, timedelta, timezone
+from threading import Thread, Event
 import signal
 import sys
 
@@ -18,50 +18,33 @@ class Worker:
         self.queue_manager = queue_manager
         self.config = config
         self.base_dir = base_dir
-        self.process = None
+        self.thread = None
+        self.stop_event = Event()
         self.running = False
-        self.pid = None
     
     def start(self):
-        """Start the worker process"""
-        self.process = Process(target=self._run)
-        self.process.start()
-        self.pid = self.process.pid
-        
-        # Register PID
-        pid_file = self.base_dir / "workers.pid"
-        with open(pid_file, 'a') as f:
-            f.write(f"{self.pid}\n")
+        """Start the worker thread"""
+        self.thread = Thread(target=self._run, daemon=True)
+        self.thread.start()
     
     def stop(self):
-        """Stop the worker process gracefully"""
-        if self.process and self.process.is_alive():
-            self.process.terminate()
-            self.process.join(timeout=10)
-            
-            if self.process.is_alive():
-                self.process.kill()
+        """Stop the worker thread gracefully"""
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=10)
     
     def join(self):
         """Wait for worker to finish"""
-        if self.process:
-            self.process.join()
+        if self.thread:
+            self.thread.join()
     
     def _run(self):
         """Main worker loop"""
         self.running = True
         
-        # Handle graceful shutdown
-        def signal_handler(signum, frame):
-            print(f"\n[{self.worker_id}] Received shutdown signal, finishing current job...")
-            self.running = False
-        
-        signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGINT, signal_handler)
-        
         print(f"[{self.worker_id}] Worker started")
         
-        while self.running:
+        while self.running and not self.stop_event.is_set():
             try:
                 job = self.queue_manager.get_next_job(self.worker_id)
                 
@@ -70,6 +53,10 @@ class Worker:
                 else:
                     time.sleep(1)  # No jobs available, wait
                     
+            except KeyboardInterrupt:
+                print(f"\n[{self.worker_id}] Received shutdown signal, finishing current job...")
+                self.running = False
+                break
             except Exception as e:
                 print(f"[{self.worker_id}] Error in worker loop: {e}")
                 time.sleep(1)
@@ -129,7 +116,7 @@ class Worker:
             # Schedule retry with exponential backoff
             backoff_base = self.config.get('backoff_base')
             delay = backoff_base ** attempts
-            next_retry_at = (datetime.utcnow() + timedelta(seconds=delay)).isoformat() + 'Z'
+            next_retry_at = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat().replace('+00:00', 'Z')
             
             print(f"[{self.worker_id}] Job '{job_id}' will retry in {delay} seconds")
             
