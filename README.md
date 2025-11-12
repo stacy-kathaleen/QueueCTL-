@@ -4,7 +4,7 @@ A production-grade CLI-based job queue system with worker processes, automatic r
 
 # Features
 
--  CLI-based job management
+- CLI-based job management
 -  Multiple concurrent workers
 -  Automatic retry with exponential backoff
 -  Dead Letter Queue (DLQ) for failed jobs
@@ -29,7 +29,8 @@ queuectl/
 ├── queue_manager.py
 ├── worker.py
 ├── config.py
-├── requirements.txt
+├── add_job.py
+├── clear_db.py
 └── README.md
 ```
 
@@ -42,7 +43,7 @@ python -m pip install click
 
 **Linux/Mac:**
 ```bash
-pip install -r requirements.txt
+pip3 install click
 ```
 
 ## 3. Verify Installation
@@ -55,25 +56,11 @@ python queuectl.py --help
 python3 queuectl.py --help
 ```
 
-## 4. (Optional) Create Alias
+## 4. Clear Database (if needed)
 
-**Windows (PowerShell)** - Add to `$PROFILE`:
-```powershell
-function queuectl { python C:\path\to\queuectl.py $args }
-```
-
-**Linux/Mac** - Add to `~/.bashrc` or `~/.zshrc`:
+If you get "Job already exists" errors:
 ```bash
-alias queuectl='python3 /path/to/queuectl.py'
-```
-
-Or use directly:
-```bash
-# Windows
-python queuectl.py [command]
-
-# Linux/Mac
-python3 queuectl.py [command]
+python clear_db.py
 ```
 
 # Usage Examples
@@ -116,7 +103,13 @@ python3 queuectl.py worker start
 python3 queuectl.py worker start --count 3
 ```
 
-Workers will run until you press `Ctrl+C`. They will finish their current jobs before stopping.
+**To stop workers:**
+- Press `Ctrl+C` (workers will finish their current job before stopping)
+- If Ctrl+C doesn't work, press it **twice quickly**
+- On Windows, you can also use `Ctrl+Break`
+- Or simply close the terminal window
+
+Workers will run until you stop them or they crash.
 
 ## 3. Check Status
 
@@ -308,7 +301,7 @@ python3 queuectl.py list  # Job still there
 - **No job priorities**: All jobs processed FIFO. Priority queues would require additional complexity.
 - **Subprocess execution**: Secure for trusted commands. Add sandboxing for untrusted input.
 
-# 📊 Sample Output
+# Sample Output
 
 ## Status Command
 ```
@@ -349,7 +342,3 @@ job-789              completed    python script.py               0          2025
 - Usually transient; workers retry automatically
 - If persistent, check file permissions on `~/.queuectl/`
 
-
----
-
-**QueueCTL** - Simple, reliable background job processing
