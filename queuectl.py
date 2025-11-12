@@ -47,7 +47,7 @@ def enqueue(job_json):
         job_data.setdefault('updated_at', datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
         
         queue_manager.enqueue_job(job_data)
-        click.echo(f"✓ Job '{job_data['id']}' enqueued successfully")
+        click.echo(f"[OK] Job '{job_data['id']}' enqueued successfully")
         
     except json.JSONDecodeError:
         click.echo("Error: Invalid JSON format", err=True)
@@ -69,7 +69,7 @@ def start(count):
     """Start worker processes"""
     import os
     if os.name == 'nt':  # Windows
-        click.echo("⚠ Warning: Multiple workers not fully supported on Windows.")
+        click.echo("Warning: Multiple workers not fully supported on Windows.")
         click.echo("  Starting single worker instead. Use Ctrl+C to stop.")
         count = 1
     
@@ -86,7 +86,7 @@ def start(count):
             )
             w.start()
             workers.append(w)
-            click.echo(f"✓ Worker {i+1} started")
+            click.echo(f"[OK] Worker {i+1} started")
         
         if count == 1:
             click.echo(f"\nWorker running. Press Ctrl+C to stop gracefully.")
@@ -101,7 +101,7 @@ def start(count):
         click.echo("\n\nShutting down workers gracefully...")
         for w in workers:
             w.stop()
-        click.echo("✓ All workers stopped")
+        click.echo("[OK] All workers stopped")
 
 
 @worker.command()
@@ -122,9 +122,9 @@ def stop():
     for pid in pids:
         try:
             os.kill(pid, signal.SIGTERM)
-            click.echo(f"✓ Sent stop signal to worker (PID: {pid})")
+            click.echo(f"[OK] Sent stop signal to worker (PID: {pid})")
         except ProcessLookupError:
-            click.echo(f"⚠ Worker (PID: {pid}) not found")
+            click.echo(f"[WARN] Worker (PID: {pid}) not found")
     
     pid_file.unlink()
 
@@ -204,7 +204,7 @@ def retry(job_id):
     """Retry a job from DLQ"""
     try:
         queue_manager.retry_dlq_job(job_id)
-        click.echo(f"✓ Job '{job_id}' moved back to queue for retry")
+        click.echo(f"[OK] Job '{job_id}' moved back to queue for retry")
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         sys.exit(1)
@@ -229,7 +229,7 @@ def config_set(key, value):
             value = float(value)
         
         config.set(key.replace('-', '_'), value)
-        click.echo(f"✓ Configuration updated: {key} = {value}")
+        click.echo(f"[OK] Configuration updated: {key} = {value}")
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         sys.exit(1)
