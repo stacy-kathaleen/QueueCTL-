@@ -342,3 +342,5 @@ job-789              completed    python script.py               0          2025
 - Usually transient; workers retry automatically
 - If persistent, check file permissions on `~/.queuectl/`
 
+# Demo Video
+- https://drive.google.com/file/d/1PzUJbfg6qkTUMbqBL1XOoT6Vc7JHMPWH/view?usp=sharing
