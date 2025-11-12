@@ -68,14 +68,28 @@ def worker():
 def start(count):
     """Start worker processes"""
     import os
+    import signal
+    
     if os.name == 'nt':  # Windows
         click.echo("Warning: Multiple workers not fully supported on Windows.")
-        click.echo("  Starting single worker instead. Use Ctrl+C to stop.")
+        click.echo("  Starting single worker instead.")
         count = 1
     
     click.echo(f"Starting {count} worker(s)...")
+    click.echo("Press Ctrl+C to stop gracefully (may take a moment).\n")
     
     workers = []
+    
+    def signal_handler(sig, frame):
+        click.echo("\n\n[STOPPING] Shutting down workers gracefully...")
+        for w in workers:
+            w.stop()
+        click.echo("[OK] All workers stopped")
+        sys.exit(0)
+    
+    # Register signal handler
+    signal.signal(signal.SIGINT, signal_handler)
+    
     try:
         for i in range(count):
             w = Worker(
@@ -88,17 +102,18 @@ def start(count):
             workers.append(w)
             click.echo(f"[OK] Worker {i+1} started")
         
-        if count == 1:
-            click.echo(f"\nWorker running. Press Ctrl+C to stop gracefully.")
-        else:
-            click.echo(f"\n{count} worker(s) running. Press Ctrl+C to stop gracefully.")
+        click.echo("")
         
-        # Wait for workers
-        for w in workers:
-            w.join()
-            
-    except KeyboardInterrupt:
-        click.echo("\n\nShutting down workers gracefully...")
+        # Keep main thread alive
+        while True:
+            import time
+            time.sleep(0.5)
+            # Check if workers are still alive
+            if not any(w.thread.is_alive() for w in workers):
+                break
+                
+    except (KeyboardInterrupt, SystemExit):
+        click.echo("\n\n[STOPPING] Shutting down workers gracefully...")
         for w in workers:
             w.stop()
         click.echo("[OK] All workers stopped")
